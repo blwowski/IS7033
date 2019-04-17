@@ -42,3 +42,13 @@ config.rst
 package-lock.json
 geckodriver.log
 .DS_Store
+
+*.bin
+*.model
+*.png
+*.pt
+
+Deep_Dream/Images/*
+Rotational_Invariance_CNN/files/*
+Scale_Invariance_CNN/files/*
+Capsule_Network/.data/*
