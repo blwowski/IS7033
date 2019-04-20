@@ -11,6 +11,7 @@
 import pandas as pd
 import numpy as np
 import time
+import gc
 
 import gensim
 from gensim.models import KeyedVectors
@@ -28,32 +29,38 @@ from torchtext.vocab import Vectors
 
 # ### Get Data and Prepare it for training
 
-# In[ ]:
+# In[2]:
 
 
 ### Settings to tokenize sentences and convert labels to torch floats
-TEXT = data.Field(tokenize = 'spacy')
+TEXT = data.Field(tokenize = 'spacy', pad_token='<pad>', unk_token='<unk>')
 LABEL = data.LabelField(dtype = torch.float)
 
 ### Get test/train split for torchtext
 train, test = datasets.IMDB.splits(TEXT, LABEL)
 
 
-# In[ ]:
+# In[3]:
+
+
+gc.collect()
+
+
+# In[4]:
 
 
 print('Number of training examples: {}'.format(len(train)))
 print('Number of training examples: {}'.format(len(test)))
 
 
-# In[ ]:
+# In[5]:
 
 
 ### Example Review and Label
 print(vars(train.examples[1]))
 
 
-# In[ ]:
+# In[6]:
 
 
 # build the vocabulary
@@ -62,14 +69,21 @@ LABEL.build_vocab(train)
 vocab_dict = dict(TEXT.vocab.stoi) ###stoi = string to int
 
 
-# In[ ]:
+# In[7]:
+
+
+gc.collect()
+
+
+# In[8]:
 
 
 def create_wv_matrix(vocab_dict):
     print ('... Loading Word Vectors')
-    word_vectors = KeyedVectors.load_word2vec_format("./models/GoogleNews-vectors-negative300.bin", binary=True)
+    word_vectors = KeyedVectors.load_word2vec_format("./models/GoogleNews-vectors-negative300.bin", binary=True, limit=250000)
     wv_matrix = []
     count = 0
+    print ('... Finish Loading Word Vectors')
     
     for each in vocab_dict.items():
         count += 1
@@ -90,6 +104,9 @@ def create_wv_matrix(vocab_dict):
     ### Add Pad Token
     wv_matrix.append(np.zeros(300).astype("float32"))
     print ('... Finished Creating Matrix')
+    
+    del(word_vectors)
+    
     return np.array(wv_matrix)
 
 def create_emb_layer(weights_matrix, non_trainable=False):
@@ -103,7 +120,7 @@ def create_emb_layer(weights_matrix, non_trainable=False):
     return emb_layer, num_embeddings, embedding_dim
 
 
-# In[ ]:
+# In[9]:
 
 
 ### Create BuckerIterator 
@@ -113,19 +130,32 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 train_iterator, test_iterator = data.BucketIterator.splits(
     (train, test), 
-    batch_size = BATCH_SIZE,
-    sort_within_batch = True,
+    batch_sizes=(BATCH_SIZE, BATCH_SIZE),
+    sort_key=lambda x: len(x.text),
+    sort_within_batch = False,
     device = device)
 
 
-# In[ ]:
+# In[10]:
+
+
+gc.collect()
+
+
+# In[11]:
 
 
 ### Get Word Vector Matrix
 wv_matrix = create_wv_matrix(vocab_dict)
 
 
-# In[ ]:
+# In[12]:
+
+
+gc.collect()
+
+
+# In[13]:
 
 
 ### Test the Embedding Layer
@@ -150,30 +180,30 @@ class CNN(nn.Module):
         self.conv1 = nn.Sequential(         # input shape (1, 300, 300)
             nn.Conv2d(
                 in_channels=1,              # input height
-                out_channels=6,             # n_filters
+                out_channels=3,             # n_filters
                 kernel_size=7,              # filter size
                 stride=1,                   # filter movement/step
                 padding=3,                  # if want same width and length of this image after Conv2d, padding=(kernel_size-1)/2 if stride=1
             ),                              # output shape (6, 300, 300)
             nn.ReLU(),                      # activation
-            nn.MaxPool2d(kernel_size=2),    # (300-2 / 2) choose max value in 2x2 area, output shape (6, 150, 150)
+            nn.MaxPool2d(kernel_size=2),    # (300-2 / 2) choose max value in 2x2 area, output shape (3, 150, 150)
         )
         
         ### Convolution Layer 2
-        self.conv2 = nn.Sequential(        # input shape (6, 150, 150)
-            nn.Conv2d(6, 6, 7, 1, 3),     # output shape (6, 150, 150)
+        self.conv2 = nn.Sequential(        # input shape (3, 150, 150)
+            nn.Conv2d(3, 3, 7, 1, 3),     # output shape (3, 150, 150)
             nn.ReLU(),                      # activation
-            nn.MaxPool2d(2),                # output shape (6, 75, 75)
+            nn.MaxPool2d(2),                # output shape (3, 75, 75)
         )
             
         ### Fully Connected Layer 3
-        self.FC1 = nn.Linear(6 * 75 * 75, 3000)
+        self.FC1 = nn.Linear(3 * 75 * 75, 2500)
         
         ### Fully Connected Layer 4
-        self.FC2 = nn.Linear(3000, 1000)
+        self.FC2 = nn.Linear(1000, 1000)
         
         # Output 2 classes
-        self.out = nn.Linear(1000, 1)
+        self.out = nn.Linear(500, 1)
         
     def forward(self, x):
         x = self.embedding(x)
@@ -268,7 +298,7 @@ def epoch_time(start_time, end_time):
     return elapsed_mins, elapsed_secs
 
 
-# In[ ]:
+# In[1]:
 
 
 ### Training Loop

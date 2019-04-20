@@ -52,3 +52,7 @@ Deep_Dream/Images/*
 Rotational_Invariance_CNN/files/*
 Scale_Invariance_CNN/files/*
 Capsule_Network/.data/*
+CapsuleNetwork/data/*
+*.csv
+CapsuleNetwork/data/imdb_master.csv
+
