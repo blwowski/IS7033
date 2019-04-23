@@ -55,4 +55,5 @@ Capsule_Network/.data/*
 CapsuleNetwork/data/*
 *.csv
 CapsuleNetwork/data/imdb_master.csv
-
+Transfer_Learning_CNN_Text_Classification/data/*
+Transfer_Learning_CNN_Text_Classification/models/*
