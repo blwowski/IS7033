@@ -45,7 +45,6 @@ geckodriver.log
 
 *.bin
 *.model
-*.png
 *.pt
 
 Deep_Dream/Images/*
